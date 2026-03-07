@@ -29,7 +29,7 @@ let package = Package(
         .package(url: "https://github.com/ml-explore/mlx-swift", .upToNextMinor(from: "0.30.6")),
         .package(
             url: "https://github.com/DePasqualeOrg/swift-transformers",
-            revision: "3faa2e45343054388073008cc3ac32c3dee9a85a"
+            branch: "combined-optimizations"
         ),
     ],
     targets: [

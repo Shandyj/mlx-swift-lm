@@ -2,6 +2,7 @@
 
 import Foundation
 import MLX
+import MLXLMCommon
 import MLXNN
 
 // MARK: - NomicEmbedding
@@ -186,17 +187,13 @@ func computeBaseFrequency(
         return base
     }
 
-    guard case .float(let factor) = ropeScaling["factor"],
-        case .float(let lowFreqFactor) = ropeScaling["low_freq_factor"]
-            ?? .float(1.0),
-        case .float(let highFreqFactor) = ropeScaling["high_freq_factor"]
-            ?? .float(4.0),
-        case .float(let oldContextLen) = ropeScaling[
-            "original_max_position_embeddings"]
-            ?? .float(8192)
-    else {
+    guard let factor = ropeScaling["factor"]?.asFloat() else {
         return base
     }
+
+    let lowFreqFactor = ropeScaling["low_freq_factor"]?.asFloat() ?? 1.0
+    let highFreqFactor = ropeScaling["high_freq_factor"]?.asFloat() ?? 4.0
+    let oldContextLen = ropeScaling["original_max_position_embeddings"]?.asFloat() ?? 8192
 
     let lowFreqWavelen = oldContextLen / lowFreqFactor
     let highFreqWavelen = oldContextLen / highFreqFactor
@@ -779,16 +776,20 @@ public class NomicBertModel: Module, EmbeddingModel {
     /// - Returns: A new dictionary with keys renamed to match this Swift class structure.
     public func sanitize(weights: [String: MLXArray]) -> [String: MLXArray] {
         weights.reduce(into: [:]) { result, item in
-            var key = item.key.replacingOccurrences(
-                of: "emb_ln", with: "embeddings.norm")
-            key = key.replacingOccurrences(of: "bert.", with: "")
-            key = key.replacingOccurrences(
-                of: "cls.predictions.transform.dense.", with: "lm_head.dense.")
-            key = key.replacingOccurrences(
-                of: "cls.predictions.transform.LayerNorm.", with: "lm_head.ln.")
-            key = key.replacingOccurrences(
-                of: "cls.predictions.decoder", with: "lm_head.decoder")
-            key = key.replacingOccurrences(of: "pooler.dense.", with: "pooler.")
+            let key = item.key
+                .replacingOccurrences(of: "emb_ln", with: "embeddings.norm")
+                .replacingOccurrences(of: "bert.", with: "")  // Remove namespace prefix
+                // Remap LM Head keys
+                .replacingOccurrences(
+                    of: "cls.predictions.transform.dense.", with: "lm_head.dense."
+                )
+                .replacingOccurrences(
+                    of: "cls.predictions.transform.LayerNorm.", with: "lm_head.ln."
+                )
+                .replacingOccurrences(of: "cls.predictions.decoder", with: "lm_head.decoder")
+                // Remap Pooler keys
+                .replacingOccurrences(of: "pooler.dense.", with: "pooler.")
+
             result[key] = item.value
         }
     }
